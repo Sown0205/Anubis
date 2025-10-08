@@ -187,7 +187,7 @@ const Settings = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center justify-betweenC">
+            <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600 dark:text-gray-300">AI Model Status</span>
               <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">Active</Badge>
             </div>
