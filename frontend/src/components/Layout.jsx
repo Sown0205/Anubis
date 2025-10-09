@@ -7,7 +7,8 @@ import {
   Settings, 
   ShieldCheckIcon,
   Moon,
-  Sun
+  Sun, 
+  FileUp,
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -16,6 +17,7 @@ const Layout = ({ children }) => {
   
   const navItems = [
     { path: "/", label: "Dashboard", icon: BarChart3 },
+    { path: "/network-analysis", label: "Network Analysis", icon: FileUp },
     { path: "/scan-history", label: "Scan history", icon: History },
     { path: "/about-us", label: "About us", icon: Info },
     { path: "/settings", label: "Settings", icon: Settings },
