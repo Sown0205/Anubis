@@ -139,9 +139,9 @@ async def get_results_analysis():
         # Determine overall status
         if total_flows == 0:
             overall_status = "No Data"
-        elif attack_flows / total_flows > 0.3:  # More than 30% of the flow is attack flows
+        elif attack_flows / total_flows > 0.3:  # More than 30% attacks
             overall_status = "Compromised"
-        elif attack_flows / total_flows > 0.15:  # More than 15% of the flow is attack flows
+        elif attack_flows / total_flows > 0.1:  # More than 10% attacks
             overall_status = "Warning"
         else:
             overall_status = "Healthy"

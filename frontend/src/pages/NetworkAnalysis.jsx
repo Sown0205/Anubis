@@ -72,6 +72,13 @@ const NetworkAnalysis = () => {
   }, [toast]);
 
   const handleFileSelect = (selectedFile) => {
+    if (!selectedFile) {
+      console.log("No file selected");
+      return;
+    }
+
+    console.log("File selected:", selectedFile.name, "Size:", selectedFile.size);
+
     const validTypes = ['.pcap', '.pcapng', '.cap'];
     const fileExtension = '.' + selectedFile.name.split('.').pop().toLowerCase();
     
@@ -81,6 +88,7 @@ const NetworkAnalysis = () => {
         description: `Please upload a PCAP file. Supported formats: ${validTypes.join(', ')}`,
         variant: "destructive"
       });
+      console.log("Invalid file type:", fileExtension);
       return;
     }
 
@@ -92,23 +100,36 @@ const NetworkAnalysis = () => {
         description: "File size must be less than 100MB",
         variant: "destructive"
       });
+      console.log("File too large:", selectedFile.size);
       return;
     }
 
+    console.log("File validation passed, setting file state");
     setFile(selectedFile);
+    
     // Reset previous analysis
     setAnalysisId(null);
     setAnalysisStatus(null);
     setAnalysisResults(null);
+
+    toast({
+      title: "File Selected",
+      description: `${selectedFile.name} ready for analysis`,
+    });
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragOver(false);
     
+    console.log("File dropped", e.dataTransfer.files);
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length > 0) {
+      console.log("Handling dropped file:", droppedFiles[0].name);
       handleFileSelect(droppedFiles[0]);
+    } else {
+      console.log("No files in drop event");
     }
   };
 
@@ -123,27 +144,43 @@ const NetworkAnalysis = () => {
   };
 
   const handleFileInput = (e) => {
-    const selectedFile = e.target.files[0];
+    console.log("File input triggered", e.target.files);
+    const selectedFile = e.target.files && e.target.files[0];
     if (selectedFile) {
+      console.log("Handling file selection:", selectedFile.name);
       handleFileSelect(selectedFile);
+    } else {
+      console.log("No file selected from input");
     }
   };
 
   const uploadAndAnalyze = async () => {
-    if (!file) return;
+    if (!file) {
+      toast({
+        title: "No File Selected",
+        description: "Please select a PCAP file first",
+        variant: "destructive"
+      });
+      return;
+    }
 
+    console.log("Starting upload and analysis for:", file.name);
     setIsUploading(true);
     
     try {
       const formData = new FormData();
       formData.append('file', file);
 
+      console.log("Uploading file to:", `${API}/pcap/upload`);
+      
       const response = await axios.post(`${API}/pcap/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-        }
+        },
+        timeout: 30000, // 30 second timeout
       });
 
+      console.log("Upload response:", response.data);
       const { analysis_id } = response.data;
       setAnalysisId(analysis_id);
 
@@ -162,9 +199,19 @@ const NetworkAnalysis = () => {
 
     } catch (error) {
       console.error('Upload failed:', error);
+      
+      let errorMessage = "Failed to upload file";
+      if (error.response) {
+        errorMessage = error.response.data?.detail || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        errorMessage = "Network error: Could not reach server";
+      } else {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Upload Failed",
-        description: error.response?.data?.detail || "Failed to upload file",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -223,13 +270,13 @@ const NetworkAnalysis = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-3 text-gray-900 dark:text-white">
             <FileUp className="w-5 h-5" />
-            <span>Upload PCAP File</span>
+            <span>Upload Network packet capture file</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {!file ? (
             <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
                 isDragOver 
                   ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
@@ -237,10 +284,11 @@ const NetworkAnalysis = () => {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
+              onClick={() => document.getElementById('file-upload')?.click()}
             >
               <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
               <p className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                Drop PCAP file here or click to browse
+                Drop your file here or click to browse
               </p>
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 Supported formats: .pcap, .pcapng, .cap (Max 100MB)
