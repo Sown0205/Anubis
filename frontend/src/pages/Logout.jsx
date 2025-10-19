@@ -8,8 +8,8 @@ function Logout() {
     const token = localStorage.getItem('token');
     if (token) {
       axios
-        .post('http://localhost:5000/logout', {}, {
-          headers: { Authorization: `Bearer ${token}` },
+        .post('http://localhost:5000/logout', {},
+             { withCredentials: true 
         })
         .then((response) => {
           localStorage.removeItem('token');
