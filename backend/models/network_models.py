@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal, List
 from datetime import datetime
 import uuid
-
 # Network Flow Models
+
 class NetworkFlow(BaseModel):
     src_ip: str
     src_port: int
