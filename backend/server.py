@@ -15,6 +15,7 @@ from routers.scan_router import router as scan_router
 from routers.settings_router import router as settings_router
 from routers.history_router import router as history_router
 from routers.pcap_router import router as pcap_router
+from routers.auth_router import router as auth_router
 from services.ai_model_service import ai_model_service
 
 ROOT_DIR = Path(__file__).parent
@@ -63,6 +64,7 @@ app.include_router(scan_router)
 app.include_router(settings_router)
 app.include_router(history_router)
 app.include_router(pcap_router)
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,
