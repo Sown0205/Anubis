@@ -37,7 +37,7 @@ const ResultsAnalysis = () => {
   };
 
   const handleGoBack = () => {
-    navigate("/");
+    navigate("/dashboard");
   };
 
   const handleExportResults = async () => {
