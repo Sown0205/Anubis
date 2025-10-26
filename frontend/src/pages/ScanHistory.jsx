@@ -23,8 +23,10 @@ const ScanHistory = () => {
 
   const fetchScanHistory = async () => {
     try {
-      const response = await axios.get(`${API}/history`);
-      setScanHistory(response.data);
+      const response = await axios.get(`${API}/history`, {
+      withCredentials: true,
+    });
+    setScanHistory(response.data);
     } catch (error) {
       console.error('Failed to fetch scan history:', error);
       // Fallback to empty array
@@ -40,7 +42,9 @@ const ScanHistory = () => {
     setLoadingDetails(true);
     
     try {
-      const response = await axios.get(`${API}/history/${scanId}`);
+      const response = await axios.get(`${API}/history/${scanId}`, {
+        withCredentials: true,
+      });
       setScanDetails(response.data);
     } catch (error) {
       console.error('Failed to fetch scan details:', error);

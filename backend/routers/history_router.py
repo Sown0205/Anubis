@@ -1,71 +1,30 @@
-from fastapi import APIRouter, HTTPException, Response
-from typing import List
+from fastapi import APIRouter, HTTPException, Response, Request, Header
+from typing import List, Optional
 import json
-import os
-from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta
-from models.network_models import ScanHistoryItem
+from motor.motor_asyncio import AsyncIOMotorClient
+import os
+from models.network_models import ScanHistoryItem, ScanSession, ScanResult
 from services.network_scanner import network_scanner
+from routers.auth_router import get_current_user
 
 router = APIRouter(prefix="/api/history", tags=["history"])
 
-# Mock scan history data (replace with database queries in production)
-def generate_mock_history() -> List[ScanHistoryItem]:
+# MongoDB connection
+mongo_url = os.environ.get('MONGO_URL')
+client = AsyncIOMotorClient(mongo_url) if mongo_url else None
+db = client[os.environ.get('DB_NAME', 'test_database')] if client else None
+
+async def get_user_scan_history(user_id: str) -> List[ScanHistoryItem]:
     """
-    Generate mock scan history for demonstration
-    TODO: Replace with actual database queries
+    Get scan history from database for a specific user
+    Returns last 10 completed scans, plus current running scan if exists
     """
-    history = [
-        ScanHistoryItem(
-            id="1",
-            date="2024-01-15",
-            time="14:30:22",
-            duration="2h 15m",
-            total_flows=15430,
-            threats=45,
-            status="Completed"
-        ),
-        ScanHistoryItem(
-            id="2", 
-            date="2024-01-14",
-            time="09:15:10",
-            duration="1h 45m",
-            total_flows=12890,
-            threats=12,
-            status="Completed"
-        ),
-        ScanHistoryItem(
-            id="3",
-            date="2024-01-13", 
-            time="16:20:45",
-            duration="3h 10m",
-            total_flows=21560,
-            threats=78,
-            status="Completed"
-        ),
-        ScanHistoryItem(
-            id="4",
-            date="2024-01-12",
-            time="11:05:33",
-            duration="1h 30m", 
-            total_flows=9876,
-            threats=23,
-            status="Completed"
-        ),
-        ScanHistoryItem(
-            id="5",
-            date="2024-01-11",
-            time="15:45:12",
-            duration="4h 20m",
-            total_flows=28945,
-            threats=156,
-            status="Completed"
-        )
-    ]
+    history = []
     
-    # Add current session if exists
+    # Add current running scan if exists and belongs to this user
     current_status = network_scanner.get_current_status()
-    if current_status["session"]:
+    if current_status["session"] and current_status["session"].user_id == user_id:
         session = current_status["session"]
         start_time = session.start_time
         
@@ -90,31 +49,89 @@ def generate_mock_history() -> List[ScanHistoryItem]:
             status="Running" if session.status == "RUNNING" else "Completed"
         )
         
-        # Insert at beginning
-        history.insert(0, current_item)
+        history.append(current_item)
+    
+    # Fetch completed scans from database
+    if db is not None:
+        try:
+            # Query last 10 completed scans for this user, sorted by start_time descending
+            cursor = db.scan_sessions.find(
+                {"user_id": user_id, "status": {"$in": ["COMPLETED", "STOPPED"]}}
+            ).sort("start_time", -1).limit(10)
+            
+            scan_sessions = await cursor.to_list(length=10)
+            
+            for session_doc in scan_sessions:
+                session = ScanSession(**session_doc)
+                
+                # Calculate duration
+                start_time = session.start_time
+                end_time = session.end_time or datetime.utcnow()
+                duration = end_time - start_time
+                hours = int(duration.total_seconds() // 3600)
+                minutes = int((duration.total_seconds() % 3600) // 60)
+                
+                if hours > 0:
+                    duration_str = f"{hours}h {minutes}m"
+                else:
+                    duration_str = f"{minutes}m"
+                
+                history_item = ScanHistoryItem(
+                    id=session.id,
+                    date=start_time.strftime("%Y-%m-%d"),
+                    time=start_time.strftime("%H:%M:%S"),
+                    duration=duration_str,
+                    total_flows=session.total_flows,
+                    threats=session.attack_count,
+                    status=session.status
+                )
+                
+                history.append(history_item)
+                
+        except Exception as e:
+            print(f"Error fetching scan history from database: {str(e)}")
     
     return history
 
 @router.get("", response_model=List[ScanHistoryItem])
-async def get_scan_history():
+async def get_scan_history(request: Request, authorization: Optional[str] = Header(None)):
     """
-    Get scan history list
+    Get scan history list for the current logged-in user
     """
     try:
-        history = generate_mock_history()
+        # Get current user - authentication required
+        user = await get_current_user(request, authorization)
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        # Get user's scan history from database
+        history = await get_user_scan_history(user.id)
         return history
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{scan_id}", response_model=dict)
-async def get_scan_details(scan_id: str):
+async def get_scan_details(scan_id: str, request: Request, authorization: Optional[str] = Header(None)):
     """
     Get detailed scan results for a specific scan
     """
     try:
+        # Get current user - authentication required
+        user = await get_current_user(request, authorization)
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
         # If it's the current session, return current results
         current_status = network_scanner.get_current_status()
         if current_status["session"] and current_status["session"].id == scan_id:
+            # Verify this scan belongs to the user
+            if current_status["session"].user_id != user.id:
+                raise HTTPException(status_code=403, detail="Access denied")
+                
             results = network_scanner.get_all_results()
             return {
                 "scan_id": scan_id,
@@ -123,13 +140,38 @@ async def get_scan_details(scan_id: str):
                 "total_results": len(results)
             }
         
-        # For historical scans, return mock data (replace with database query)
-        return {
-            "scan_id": scan_id,
-            "message": "Historical scan details would be retrieved from database",
-            "note": "This is a mock response - implement database integration"
-        }
+        # For historical scans, fetch from database
+        if db is not None:
+            try:
+                # Fetch scan session
+                session_doc = await db.scan_sessions.find_one({"id": scan_id, "user_id": user.id})
+                
+                if not session_doc:
+                    raise HTTPException(status_code=404, detail="Scan not found")
+                
+                session = ScanSession(**session_doc)
+                
+                # Fetch scan results
+                results_cursor = db.scan_results.find({"scan_id": scan_id})
+                results_docs = await results_cursor.to_list(length=None)
+                results = [ScanResult(**doc) for doc in results_docs]
+                
+                return {
+                    "scan_id": scan_id,
+                    "session": session,
+                    "results": results,
+                    "total_results": len(results)
+                }
+                
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        else:
+            raise HTTPException(status_code=500, detail="Database not available")
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -182,12 +224,35 @@ async def export_scan_results(scan_id: str = None):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{scan_id}")
-async def delete_scan_record(scan_id: str):
+async def delete_scan_record(scan_id: str, request: Request, authorization: Optional[str] = Header(None)):
     """
     Delete a scan record
     """
     try:
-        # TODO: Implement actual deletion from database
-        return {"message": f"Scan record {scan_id} deletion requested", "note": "Implement database deletion"}
+        # Get current user - authentication required
+        user = await get_current_user(request, authorization)
+        
+        if not user:
+            raise HTTPException(status_code=401, detail="Authentication required")
+        
+        if db is not None:
+            # Verify scan belongs to user before deleting
+            session_doc = await db.scan_sessions.find_one({"id": scan_id, "user_id": user.id})
+            
+            if not session_doc:
+                raise HTTPException(status_code=404, detail="Scan not found")
+            
+            # Delete scan session
+            await db.scan_sessions.delete_one({"id": scan_id, "user_id": user.id})
+            
+            # Delete associated scan results
+            await db.scan_results.delete_many({"scan_id": scan_id})
+            
+            return {"message": f"Scan record {scan_id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Database not available")
+            
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

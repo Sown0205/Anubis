@@ -23,7 +23,9 @@ const Dashboard = () => {
 
   const fetchScanStatus = async () => {
     try {
-      const response = await axios.get(`${API}/scan/status`);
+      const response = await axios.get(`${API}/scan/status`, {
+        withCredentials: true,
+      });
       const data = response.data;
       
       setIsScanning(data.is_scanning);

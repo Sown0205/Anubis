@@ -1,12 +1,26 @@
 import asyncio
 import logging
 import random
+import os
 from datetime import datetime, timedelta
 from typing import List, Optional, AsyncGenerator
+from dotenv import load_dotenv
+from pathlib import Path
+from motor.motor_asyncio import AsyncIOMotorClient
 from models.network_models import NetworkFlow, ScanResult, ScanSession
 from services.ai_model_service import ai_model_service
 
 logger = logging.getLogger(__name__)
+
+# Load environment variables
+ROOT_DIR = Path(__file__).parent.parent
+load_dotenv(ROOT_DIR / '.env')
+
+# MongoDB connection
+mongo_url = os.environ.get('MONGO_URL')
+db_name = os.environ.get('DB_NAME', 'test_database')
+
+logger.info(f"Initializing NetworkScanner with database: {db_name}")
 
 class NetworkScanner:
     """
@@ -20,7 +34,17 @@ class NetworkScanner:
         self.scan_results = []
         self.scan_task = None
         
-    async def start_scanning(self, settings: dict = None) -> ScanSession:
+        # Initialize MongoDB connection
+        if mongo_url:
+            self.client = AsyncIOMotorClient(mongo_url)
+            self.db = self.client[db_name]
+            logger.info(f"NetworkScanner initialized with MongoDB connection to {db_name}")
+        else:
+            self.client = None
+            self.db = None
+            logger.warning("NetworkScanner initialized without MongoDB connection")
+        
+    async def start_scanning(self, settings: dict = None, user_id: str = None) -> ScanSession:
         """
         Start real-time network scanning
         """
@@ -30,20 +54,20 @@ class NetworkScanner:
         if not ai_model_service.is_loaded:
             await ai_model_service.load_model()
             
-        # Create new scan session
-        self.current_scan_session = ScanSession(settings=settings or {})
+        # Create new scan session with user_id
+        self.current_scan_session = ScanSession(settings=settings or {}, user_id=user_id)
         self.is_scanning = True
         self.scan_results = []
         
         # Start background scanning task
         self.scan_task = asyncio.create_task(self._scan_loop())
         
-        logger.info(f"Started network scanning session: {self.current_scan_session.id}")
+        logger.info(f"Started network scanning session: {self.current_scan_session.id} for user: {user_id}")
         return self.current_scan_session
     
     async def stop_scanning(self) -> Optional[ScanSession]:
         """
-        Stop real-time network scanning
+        Stop real-time network scanning and save to database
         """
         if not self.is_scanning:
             return None
@@ -60,6 +84,27 @@ class NetworkScanner:
         if self.current_scan_session:
             self.current_scan_session.status = "COMPLETED"
             self.current_scan_session.end_time = datetime.utcnow()
+            
+            # Save to database
+            if self.db is not None:
+                try:
+                    # Save scan session
+                    session_dict = self.current_scan_session.dict()
+                    result = await self.db.scan_sessions.insert_one(session_dict)
+                    logger.info(f"Saved scan session {self.current_scan_session.id} to database. MongoDB ID: {result.inserted_id}")
+                    
+                    # Save scan results
+                    if self.scan_results:
+                        results_dicts = [result.dict() for result in self.scan_results]
+                        insert_result = await self.db.scan_results.insert_many(results_dicts)
+                        logger.info(f"Saved {len(insert_result.inserted_ids)} scan results to database")
+                    else:
+                        logger.warning(f"No scan results to save for session {self.current_scan_session.id}")
+                    
+                except Exception as e:
+                    logger.error(f"Error saving scan to database: {str(e)}", exc_info=True)
+            else:
+                logger.error("Database connection not available. Scan data not saved!")
             
         logger.info(f"Stopped network scanning session: {self.current_scan_session.id}")
         return self.current_scan_session

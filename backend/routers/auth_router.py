@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request, Response, Header
+from fastapi import APIRouter, HTTPException, Request, Response, Header, Depends
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -15,8 +16,11 @@ from models.user_models import User, UserSession, SessionData, UserResponse
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+router = APIRouter(prefix="/api/auth", tags=["authentication"]) 
 logger = logging.getLogger(__name__)
+
+# HTTP Bearer scheme for API docs and bearer support
+security = HTTPBearer(auto_error=False)
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -139,15 +143,18 @@ async def create_session(request: Request, response: Response, x_session_id: str
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(request: Request, authorization: Optional[str] = Header(None)):
+async def get_me(request: Request, authorization: Optional[str] = Header(None), credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Get current authenticated user
     """
+    # Prefer explicit bearer credentials if provided
+    if credentials and credentials.scheme and credentials.scheme.lower() == "bearer":
+        authorization = f"Bearer {credentials.credentials}"
+
     user = await get_current_user(request, authorization)
-    
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -155,11 +162,26 @@ async def get_me(request: Request, authorization: Optional[str] = Header(None)):
         picture=user.picture
     )
 
+# Reusable dependency to require authentication (via cookie or Bearer)
+async def require_user(request: Request, authorization: Optional[str] = Header(None), credentials: HTTPAuthorizationCredentials = Depends(security)) -> User:
+    # Prefer explicit bearer credentials if provided
+    if credentials and credentials.scheme and credentials.scheme.lower() == "bearer":
+        authorization = f"Bearer {credentials.credentials}"
+
+    user = await get_current_user(request, authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
 @router.post("/logout")
-async def logout(request: Request, response: Response, authorization: Optional[str] = Header(None)):
+async def logout(request: Request, response: Response, authorization: Optional[str] = Header(None), credentials: HTTPAuthorizationCredentials = Depends(security)):
     """
     Logout user and clear session
     """
+    # Prefer explicit bearer credentials if provided
+    if credentials and credentials.scheme.lower() == "bearer":
+        authorization = f"Bearer {credentials.credentials}"
+
     session_token = request.cookies.get("session_token")
     
     if not session_token and authorization:
