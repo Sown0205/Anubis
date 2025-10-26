@@ -3,6 +3,9 @@ from typing import List, Optional
 import json
 import asyncio
 from datetime import datetime, timedelta
+import os
+
+from motor.motor_asyncio import AsyncIOMotorClient
 
 from models.network_models import (
     ScanSession, ScanSessionCreate, ScanResult, 
@@ -10,6 +13,11 @@ from models.network_models import (
 )
 from services.network_scanner import network_scanner
 from services.ai_model_service import ai_model_service
+
+# MongoDB connection (local to this router to avoid circular imports)
+mongo_url = os.environ.get('MONGO_URL')
+_db_client = AsyncIOMotorClient(mongo_url) if mongo_url else None
+_db = _db_client[os.environ['DB_NAME']] if _db_client else None
 
 router = APIRouter(prefix="/api/scan", tags=["scanning"])
 
@@ -48,10 +56,30 @@ async def start_scanning(scan_request: ScanSessionCreate = ScanSessionCreate()):
 @router.post("/stop", response_model=Optional[ScanSession])
 async def stop_scanning():
     """
-    Stop real-time network scanning
+    Stop real-time network scanning and persist the session and results
     """
     try:
         session = await network_scanner.stop_scanning()
+
+        # Persist session and results to the database so they show up in history
+        if session and _db:
+            try:
+                # Insert or update scan session
+                session_doc = session.dict()
+                await _db.scan_sessions.insert_one(session_doc)
+
+                # Bulk insert results for this session
+                results = network_scanner.get_all_results()
+                if results:
+                    docs = [r.dict() for r in results]
+                    # Ensure scan_id is present on all results
+                    for d in docs:
+                        d.setdefault('scan_id', session.id)
+                    await _db.scan_results.insert_many(docs)
+            except Exception as db_err:
+                # Don't fail stopping due to DB issues, but surface as 500 if critical
+                raise HTTPException(status_code=500, detail=f"Failed to persist scan data: {db_err}")
+
         return session
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

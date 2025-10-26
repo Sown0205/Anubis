@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Response
 from typing import List
 import json
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta
 from models.network_models import ScanHistoryItem
 from services.network_scanner import network_scanner
