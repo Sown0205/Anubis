@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import {
   BarChart3,
   History,
@@ -10,7 +10,7 @@ import {
   Sun,
   FileUp,
   LogOut,
-  User
+  User,
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -26,10 +26,9 @@ import {
   AlertDialogAction,
 } from "./ui/alert-dialog";
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const navItems = [
@@ -45,11 +44,15 @@ const Layout = ({ children }) => {
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 transition-colors duration-300">
         <div className="flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center space-x-3">
             <ShieldCheckIcon className="w-8 h-8 text-black dark:text-white" />
-            <span className="font-neotriad text-4xl font-bold text-gray-900 dark:text-white">ANUBIS</span>
+            <span className="font-neotriad text-4xl font-bold text-gray-900 dark:text-white">
+              ANUBIS
+            </span>
           </div>
 
+          {/* Right-side controls */}
           <div className="flex items-center space-x-4">
             {user && (
               <div className="flex items-center space-x-3">
@@ -70,6 +73,7 @@ const Layout = ({ children }) => {
               </div>
             )}
 
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300 group"
@@ -82,6 +86,7 @@ const Layout = ({ children }) => {
               )}
             </button>
 
+            {/* Logout button */}
             <Button
               data-testid="logout-button"
               onClick={() => setShowLogoutModal(true)}
@@ -98,7 +103,7 @@ const Layout = ({ children }) => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Confirm Logout</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to log out ?
+                    Are you sure you want to log out?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -119,8 +124,9 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      {/* Sidebar + Main */}
+      {/* Sidebar + Main content */}
       <div className="flex">
+        {/* Sidebar */}
         <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 min-h-[calc(100vh-73px)] transition-colors duration-300">
           <nav className="p-4 space-y-2">
             {navItems.map((item) => {
@@ -145,8 +151,9 @@ const Layout = ({ children }) => {
           </nav>
         </aside>
 
+        {/* Main content area */}
         <main className="flex-1 p-8 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
@@ -154,3 +161,4 @@ const Layout = ({ children }) => {
 };
 
 export default Layout;
+

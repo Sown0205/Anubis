@@ -5,6 +5,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import NotFound from "./components/NotFound";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import NetworkAnalysis from "./pages/NetworkAnalysis";
@@ -24,23 +25,25 @@ function App() {
               {/* Public route - Landing Page */}
               <Route path="/" element={<LandingPage />} />
               
-              {/* Protected routes - Inside Layout */}
-              <Route path="/*" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Routes>
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/network-analysis" element={<NetworkAnalysis />} />
-                      <Route path="/scan-history" element={<ScanHistory />} />
-                      <Route path="/about-us" element={<AboutUs />} />
-                      <Route path="/settings" element={<Settings />} />
-                      <Route path="/results" element={<ResultsAnalysis />} />
-                    </Routes>
-                  </Layout>
-                </ProtectedRoute>
-              } />
+              {/* Protected routes using Layout + nested routes */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <Layout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="network-analysis" element={<NetworkAnalysis />} />
+                <Route path="scan-history" element={<ScanHistory />} />
+                <Route path="about-us" element={<AboutUs />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="results" element={<ResultsAnalysis />} />
+              </Route>
+
+              {/* Catch-all 404 page with no layout */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
-            <Toaster />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
