@@ -29,7 +29,7 @@ db = client[os.environ['DB_NAME']]
 
 # Constants
 SESSION_DURATION_DAYS = 7
-EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data" # For demo
+EMERGENT_AUTH_URL = "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data"
 
 async def get_current_user(request: Request, authorization: Optional[str] = Header(None)) -> Optional[User]:
     """

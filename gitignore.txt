@@ -78,3 +78,7 @@ agenthub/agents/youtube/db
 
 # Mobile development
 android-sdk/ 
+
+# Environment variables
+/frontend/.env
+/backend/.env

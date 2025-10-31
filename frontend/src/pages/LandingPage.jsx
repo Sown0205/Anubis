@@ -9,7 +9,7 @@ import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-const AUTH_URL = "https://auth.emergentagent.com"
+const AUTH_URL = "https://auth.emergentagent.com";
 
 const LandingPage = () => {
   const navigate = useNavigate();

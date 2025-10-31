@@ -27,7 +27,7 @@ const NotFound = () => {
         404
       </h1>
       <p className="text-lg mb-6 text-center max-w-md">
-        Oops! The page you’re looking for doesn’t exist or has been moved.
+        Oops! The page you’re looking for doesn’t exist or has been moved.  
       </p>
       <Link
         to="/"
