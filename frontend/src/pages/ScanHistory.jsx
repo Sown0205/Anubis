@@ -23,9 +23,7 @@ const ScanHistory = () => {
 
   const fetchScanHistory = async () => {
     try {
-      const response = await axios.get(`${API}/history`, {
-      withCredentials: true,
-    });
+      const response = await axios.get(`${API}/history`, {withCredentials: true});
     setScanHistory(response.data);
     } catch (error) {
       console.error('Failed to fetch scan history:', error);

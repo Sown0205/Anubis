@@ -7,6 +7,7 @@ import os
 from models.network_models import ScanHistoryItem, ScanSession, ScanResult
 from services.network_scanner import network_scanner
 from routers.auth_router import get_current_user
+import traceback
 
 router = APIRouter(prefix="/api/history", tags=["history"])
 
@@ -100,17 +101,20 @@ async def get_scan_history(request: Request, authorization: Optional[str] = Head
     """
     try:
         # Get current user - authentication required
-        user = await get_current_user(request, authorization)
+        user = await get_current_user(request)
         
         if not user:
             raise HTTPException(status_code=401, detail="Authentication required")
         
         # Get user's scan history from database
         history = await get_user_scan_history(user.id)
+
         return history
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Error in /api/history endpoint: {str(e)}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{scan_id}", response_model=dict)
@@ -120,7 +124,7 @@ async def get_scan_details(scan_id: str, request: Request, authorization: Option
     """
     try:
         # Get current user - authentication required
-        user = await get_current_user(request, authorization)
+        user = await get_current_user(request)
         
         if not user:
             raise HTTPException(status_code=401, detail="Authentication required")

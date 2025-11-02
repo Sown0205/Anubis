@@ -40,7 +40,7 @@ const Dashboard = () => {
   const handleStartScan = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/scan/start`);
+      await axios.post(`${API}/scan/start`, {} , {withCredentials: true});
       setIsScanning(true);
     } catch (error) {
       console.error('Failed to start scan:', error);
@@ -52,7 +52,7 @@ const Dashboard = () => {
   const handleStopScan = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API}/scan/stop`);
+      await axios.post(`${API}/scan/stop`, {} , {withCredentials: true});
       setIsScanning(false);
     } catch (error) {
       console.error('Failed to stop scan:', error);

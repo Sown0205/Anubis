@@ -41,6 +41,7 @@ class ScanResult(BaseModel):
 # Scan Session Models
 class ScanSession(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
     start_time: datetime = Field(default_factory=datetime.utcnow)
     end_time: Optional[datetime] = None
     status: Literal["RUNNING", "COMPLETED", "STOPPED"] = "RUNNING"
