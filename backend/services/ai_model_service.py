@@ -402,25 +402,25 @@ class AIModelService:
                 ) for _ in features_list
             ]
     
-    def _mock_prediction(self, features: Dict[str, Any]) -> bool:
-        """
-        Mock prediction logic - REMOVE THIS when integrating real model
-        This simulates attack detection based on some heuristics
-        """
-        # Simple heuristic: certain ports are more likely to be attacks
-        suspicious_ports = [22, 23, 135, 139, 445, 1433, 3389, 4444, 5432]
+    # def _mock_prediction(self, features: Dict[str, Any]) -> bool:
+    #     """
+    #     Mock prediction logic - REMOVE THIS when integrating real model
+    #     This simulates attack detection based on some heuristics
+    #     """
+    #     # Simple heuristic: certain ports are more likely to be attacks
+    #     suspicious_ports = [22, 23, 135, 139, 445, 1433, 3389, 4444, 5432]
         
-        # Higher chance of attack for suspicious ports
-        if features.get('dst_port') in suspicious_ports:
-            return random.random() < 0.3  # 30% chance of being classified as attack
+    #     # Higher chance of attack for suspicious ports
+    #     if features.get('dst_port') in suspicious_ports:
+    #         return random.random() < 0.3  # 30% chance of being classified as attack
         
-        # Lower chance for common ports
-        common_ports = [80, 443, 53, 25, 110, 993, 995]
-        if features.get('dst_port') in common_ports:
-            return random.random() < 0.05  # 5% chance of being classified as attack
+    #     # Lower chance for common ports
+    #     common_ports = [80, 443, 53, 25, 110, 993, 995]
+    #     if features.get('dst_port') in common_ports:
+    #         return random.random() < 0.05  # 5% chance of being classified as attack
             
-        # Default chance for other ports
-        return random.random() < 0.15  # 15% chance of being classified as attack
+    #     # Default chance for other ports
+    #     return random.random() < 0.15  # 15% chance of being classified as attack
     
     def get_model_info(self) -> Dict[str, Any]:
         """

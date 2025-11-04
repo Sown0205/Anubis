@@ -195,8 +195,8 @@ class NetworkScanner:
                 dst_port=dst_port,
                 protocol=protocol,
                 flow_duration=random.uniform(0.1, 10.0),
-                total_bytes=random.randint(64, 15000000),
-                packet_count=random.randint(1, 1000000),
+                total_bytes=random.randint(1000000, 15000000000),
+                packet_count=random.randint(100000, 1000000),
                 timestamp=datetime.utcnow()
             )
             

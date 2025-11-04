@@ -5,9 +5,31 @@ import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { Calendar, Clock, Activity, AlertTriangle, CheckCircle } from "lucide-react";
 import axios from "axios";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  ComposedChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+const COLORS = {
+  benign: '#22c55e',
+  attack: '#ef4444',
+  primary: '#3b82f6'
+};
 
 const ScanHistory = () => {
   const [scanHistory, setScanHistory] = useState([]);
@@ -23,7 +45,9 @@ const ScanHistory = () => {
 
   const fetchScanHistory = async () => {
     try {
-      const response = await axios.get(`${API}/history`, {withCredentials: true});
+      const response = await axios.get(`${API}/history`, {
+      withCredentials: true,
+    });
     setScanHistory(response.data);
     } catch (error) {
       console.error('Failed to fetch scan history:', error);
@@ -341,6 +365,124 @@ const ScanHistory = () => {
                         </div>
                       </CardContent>
                     </Card>
+                  </div>
+                );
+              })()}
+
+              {/* Enhanced Visualizations */}
+              {scanDetails.results && scanDetails.results.length > 0 && (() => {
+                const results = scanDetails.results;
+                
+                // Prepare pie chart data
+                const pieData = [
+                  { name: 'Benign', value: scanDetails.session?.benign_count || 0, color: COLORS.benign },
+                  { name: 'Attack', value: scanDetails.session?.attack_count || 0, color: COLORS.attack }
+                ];
+
+                // Attack types distribution
+                const attackTypes = {};
+                results.forEach(result => {
+                  if (result.status === 'ATTACK' && result.ai_prediction?.threat_type) {
+                    const type = result.ai_prediction.threat_type;
+                    attackTypes[type] = (attackTypes[type] || 0) + 1;
+                  }
+                });
+                const attackTypeData = Object.entries(attackTypes).map(([name, count]) => ({ name, count }));
+
+                // Protocol distribution
+                const protocols = {};
+                results.forEach(result => {
+                  const protocol = result.network_flow?.protocol || 'UNKNOWN';
+                  if (!protocols[protocol]) {
+                    protocols[protocol] = { protocol, benign: 0, attack: 0 };
+                  }
+                  if (result.status === 'BENIGN') {
+                    protocols[protocol].benign += 1;
+                  } else {
+                    protocols[protocol].attack += 1;
+                  }
+                });
+                const protocolData = Object.values(protocols);
+
+                return (
+                  <div className="space-y-6 mt-6">
+                    {/* Pie Chart with Recharts */}
+                    <Card className="border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-900">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                          Traffic Distribution (Recharts Visualization)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <PieChart>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                              outerRadius={80}
+                              fill="#8884d8"
+                              dataKey="value"
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Attack Types Bar Chart */}
+                      {attackTypeData.length > 0 && (
+                        <Card className="border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-900">
+                          <CardHeader>
+                            <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                              Attack Types Distribution
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart data={attackTypeData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="count" fill={COLORS.attack} name="Occurrences" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Protocol-based Analysis */}
+                      <Card className="border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-900">
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Protocol-Based Analysis
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={protocolData}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="protocol" />
+                              <YAxis />
+                              <Tooltip />
+                              <Legend />
+                              <Bar dataKey="benign" stackId="a" fill={COLORS.benign} name="Benign" />
+                              <Bar dataKey="attack" stackId="a" fill={COLORS.attack} name="Attack" />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 );
               })()}
